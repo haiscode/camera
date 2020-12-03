@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-    #include <unistd.h>
+#include <unistd.h>
 
 #include <jpeglib.h>
 
@@ -49,7 +49,7 @@ int showjpg(char *filename, int x, int y)
 
 
     
-    //指定解压数据源
+    //绑定解压数据源
     jpeg_stdio_src(&mydecom,myjpg);
 
     //读取jpg的头信息
@@ -68,21 +68,19 @@ int showjpg(char *filename, int x, int y)
     char *readbuf = malloc(mydecom.image_width*3);
 
     //定义数组来存放ARGB的数据
-    int rgbbug[mydecom.image_width];
+    int rgbbug[mydecom.image_width - y];
 
     int i,j;
-    for (i = 0; i < mydecom.image_height; i++)
+    for (i = 0; i < mydecom.image_height -x; i++)
     {
-        if (x>479-i)
-        {
-            continue;
-        }
+        
         
 
         //读取一行的解压缩数据
         jpeg_read_scanlines(&mydecom,(JSAMPARRAY)(&readbuf),1);
         
-        for (j = 0; j < mydecom.image_width; j++)
+
+        for (j = 0; j < mydecom.image_width - y; j++)
         {
             
             
@@ -91,6 +89,9 @@ int showjpg(char *filename, int x, int y)
         }
         
         
+        //超出屏幕范围的不显示
+
+
         
 
         memcpy(p+(x+i)*800+y,rgbbug,(mydecom.image_width-y)*4);
