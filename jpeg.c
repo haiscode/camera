@@ -10,8 +10,9 @@
 
 #include <jpeglib.h>
 
-int main(int argc, char const *argv[])
+int showjpg(char *filename, int x, int y)
 {
+
     //定义解压缩体和处理错误结构体并初始化
     struct jpeg_decompress_struct mydecom;
     jpeg_create_decompress(&mydecom);
@@ -20,7 +21,7 @@ int main(int argc, char const *argv[])
     mydecom.err = jpeg_std_error(&myerror);
 
     //打开需要显示的jpg图片
-    FILE * myjpg = fopen("1.jpg","r+");
+    FILE * myjpg = fopen(filename,"r+");
         if(myjpg == NULL)
         {
             perror("myjpg");
@@ -34,7 +35,7 @@ int main(int argc, char const *argv[])
             return -1;
         }
     //映射lcd
-    int * p = mmap(NULL, 800*480*4, PROT_READ |  PROT_WRITE,  MAP_SHARED,
+    int * p = mmap(NULL, (800)*(480)*4, PROT_READ |  PROT_WRITE,  MAP_SHARED,
                   lcdfd, 0);
                   if (p == MAP_FAILED)
                   {
@@ -69,21 +70,30 @@ int main(int argc, char const *argv[])
     //定义数组来存放ARGB的数据
     int rgbbug[mydecom.image_width];
 
-
-    for (int i = 0; i < mydecom.image_height; i++)
+    int i,j;
+    for (i = 0; i < mydecom.image_height; i++)
     {
+        if (x>479-i)
+        {
+            continue;
+        }
+        
 
         //读取一行的解压缩数据
         jpeg_read_scanlines(&mydecom,(JSAMPARRAY)(&readbuf),1);
-
-        for (int j = 0; j < mydecom.image_width; j++)
+        
+        for (j = 0; j < mydecom.image_width; j++)
         {
+            
             
             rgbbug[j] = 0x00<<24 |readbuf[3*j]<<16 |readbuf[3*j+1]<<8 |readbuf[3*j+2];
             
         }
+        
+        
+        
 
-        memcpy(p+i*800,rgbbug,mydecom.image_width*4);
+        memcpy(p+(x+i)*800+y,rgbbug,(mydecom.image_width-y)*4);
 
     }
     //收尾工作
@@ -91,17 +101,15 @@ int main(int argc, char const *argv[])
     jpeg_destroy_decompress(&mydecom);
     fclose(myjpg);
     close(lcdfd);
-    munmap(p, 800*480*3);
-
-    
-
-
-    
-
-
-
-
-
+    munmap(p, (800)*(480)*4);
 
     return 0;
 }
+
+
+int main(int argc, char const *argv[])
+{
+    showjpg("1.jpg",110,300);
+    return 0;
+}
+

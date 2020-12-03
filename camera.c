@@ -9,6 +9,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <linux/videodev2.h>
+#include <jpeglib.h>
 
 
 
@@ -24,11 +25,19 @@ struct camerebuf
     int somelength;//保存的内存块的大小
 };
 
+struct  rgb
+{
+    int pix; //rgb
+    int Apix; //argb
+};
+
+
 //封装 yuv---->argb
-int toRGB(int y,int u, int v)
+struct  rgb toRGB(int y,int u, int v)
 {
     int r,g,b;
-    int pix;
+    struct  rgb newrgb;
+
     //通过公式进行转换
     r= y + ((360 * (v - 128))>>8) ; 
     g= y - ( ( ( 88 * (u - 128)  + 184 * (v - 128)) )>>8) ; 
@@ -47,17 +56,75 @@ int toRGB(int y,int u, int v)
 		g=0;
 	if(b<0)
 		b=0;
-    pix = 0x00<<24 | r<<16 | g<<8 | b;
-    return pix;
+    newrgb.Apix = 0x00<<24 | r<<16 | g<<8 | b;
+    newrgb.pix = r<<16 | g<<8 | b;
+    return newrgb;
 
 }
 
-int allyuvtoRGB(char *yubdata,int *lcdbuf)
+int rgbtojeg(int *rgbdata,char *filename)
+{
+    //定义压缩结构体
+    struct jpeg_compress_struct myconpress;
+    jpeg_create_compress(&myconpress);
+
+    //定义错误结构体
+    struct jpeg_error_mgr myerror;
+    myconpress.err = jpeg_std_error(&myerror);
+
+
+    //设置压缩参数
+    myconpress.image_width =W;
+    myconpress.image_height = H;
+    myconpress.input_components = 3;
+    myconpress.in_color_space = JCS_RGB;
+    jpeg_set_defaults(&myconpress);
+
+    //设置压缩比例
+    jpeg_set_quality(&myconpress,80,TRUE);
+
+    //建立一个空白jpg文件
+    FILE *myjpg = fopen(filename,"w+");
+        if(myjpg == NULL)
+        {
+            perror("fopen");
+            return -1;
+        }
+
+    //绑定输出
+    jpeg_stdio_dest(&myconpress,myjpg);
+
+    //开始压缩
+    jpeg_start_compress(&myconpress,TRUE);
+    JSAMPARRAY array[1];
+    int i,j;
+    //把压缩后的数据写入空白的jpeg
+    for(i = 0 ; i<H;i++)
+    {
+        array[0] = rgbdata+W*3*i;
+        jpeg_write_scanlines(&myconpress,array,1);
+    }
+
+
+    //收尾工作
+    jpeg_finish_compress(&myconpress);
+    jpeg_destroy_compress(&myconpress);
+    fclose(myjpg);
+    return 0;
+
+
+
+}
+
+int allyuvtoRGB(char *yubdata,int *argbbuf,int *rgbbuf)
 {
     for (int i = 0 ,j = 0; j < H*W; i+=4,j+=2)
     {
-        lcdbuf[j] = toRGB(yubdata[i],yubdata[i+1],yubdata[i+3]);
-        lcdbuf[j+1] = toRGB(yubdata[i+2],yubdata[i+1],yubdata[i+3]);
+        argbbuf[j] = toRGB(yubdata[i],yubdata[i+1],yubdata[i+3]).Apix;
+        rgbbuf[j] = toRGB(yubdata[i],yubdata[i+1],yubdata[i+3]).pix;
+        argbbuf[j+1] = toRGB(yubdata[i+2],yubdata[i+1],yubdata[i+3]).Apix;
+        rgbbuf[j+1] = toRGB(yubdata[i+2],yubdata[i+1],yubdata[i+3]).pix;
+
     }
     return 0;
 
@@ -178,7 +245,8 @@ int main()
 
 
     //循环出对入队显示画面
-    int  rgbbuf[H*W];   
+    int  argbbuf[H*W]; 
+    int  rgbbuf[H*W];  
     while (1)
     {
         for (int i = 0; i < 4; i++)
@@ -207,10 +275,17 @@ int main()
             
             //把出队画面从lcd上显示出来
             //将array[i].start YUV格式的内容转换成ARGB格式在lcd屏幕上去显示
-            allyuvtoRGB(array[i].start,rgbbuf);
+            allyuvtoRGB(array[i].start,argbbuf,rgbbuf);
+
+
+
+            //将获取到的RGB输入到本地图片
+            rgbtojeg(rgbbuf,"2.jpg");
+
+
             //将lcdbuf写入lcd映射中
             for (int j = 0; j < H; j++)
-                memcpy(lcdbuf+80+800*j,&rgbbuf[W*j],W*4);
+                memcpy(lcdbuf+80+800*j,&argbbuf[W*j],W*4);
             
         }
 
