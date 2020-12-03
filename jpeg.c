@@ -59,19 +59,14 @@ int showjpg(char *filename, int x, int y)
     jpeg_start_decompress(&mydecom);
 
 
-    //打印图片的宽高
-    // printf("W:%d\n",mydecom.image_width);
-    // printf("H:%d\n",mydecom.image_height);
-
-
     //定义数组来存放解压缩到的数据
     char *readbuf = malloc(mydecom.image_width*3);
 
     //定义数组来存放ARGB的数据
-    int rgbbug[mydecom.image_width - y];
+    int rgbbug[mydecom.image_width ];
 
     int i,j;
-    for (i = 0; i < mydecom.image_height -x; i++)
+    for (i = 0; i < mydecom.image_height ; i++)
     {
         
         
@@ -80,7 +75,7 @@ int showjpg(char *filename, int x, int y)
         jpeg_read_scanlines(&mydecom,(JSAMPARRAY)(&readbuf),1);
         
 
-        for (j = 0; j < mydecom.image_width - y; j++)
+        for (j = 0; j < mydecom.image_width ; j++)
         {
             
             
@@ -88,13 +83,9 @@ int showjpg(char *filename, int x, int y)
             
         }
         
-        
-        //超出屏幕范围的不显示
 
-
-        
-
-        memcpy(p+(x+i)*800+y,rgbbug,(mydecom.image_width-y)*4);
+        //获取到的argb显示到开发板lcd
+        memcpy(p+(x+i)*800+y,rgbbug,(mydecom.image_width)*4);
 
     }
     //收尾工作
