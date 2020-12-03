@@ -24,7 +24,7 @@ struct camerebuf
     void *start; //每个缓冲内存的首地址
     int somelength;//保存的内存块的大小
 };
-
+//像素结构体
 struct  rgb
 {
     int pix; //rgb
@@ -61,7 +61,7 @@ struct  rgb toRGB(int y,int u, int v)
     return newrgb;
 
 }
-
+/*RGB create jpeg  in location*/
 int rgbtojeg(int *rgbdata,char *filename)
 {
     //定义压缩结构体
@@ -115,13 +115,16 @@ int rgbtojeg(int *rgbdata,char *filename)
 
 
 }
-
+/*YUYV-->RGB/ARGB*/
 int allyuvtoRGB(char *yubdata,int *argbbuf,int *rgbbuf)
 {
     for (int i = 0 ,j = 0; j < H*W; i+=4,j+=2)
     {
+        //第一组数组
         argbbuf[j] = toRGB(yubdata[i],yubdata[i+1],yubdata[i+3]).Apix;
         rgbbuf[j] = toRGB(yubdata[i],yubdata[i+1],yubdata[i+3]).pix;
+
+        //第二组数组
         argbbuf[j+1] = toRGB(yubdata[i+2],yubdata[i+1],yubdata[i+3]).Apix;
         rgbbuf[j+1] = toRGB(yubdata[i+2],yubdata[i+1],yubdata[i+3]).pix;
 
@@ -278,14 +281,12 @@ int main()
             allyuvtoRGB(array[i].start,argbbuf,rgbbuf);
 
 
-
-            //将获取到的RGB输入到本地图片
-            rgbtojeg(rgbbuf,"2.jpg");
-
-
             //将lcdbuf写入lcd映射中
             for (int j = 0; j < H; j++)
                 memcpy(lcdbuf+80+800*j,&argbbuf[W*j],W*4);
+
+            //将获取到的RGB输入到本地图片
+            rgbtojeg(rgbbuf,"2.jpg");
             
         }
 
