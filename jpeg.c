@@ -1,6 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <jpeglib.h>
 
@@ -20,6 +25,27 @@ int main(int argc, char const *argv[])
             perror("myjpg");
             return -1;
         }
+    //打开lcd
+    int lcdfd = open("/dev/fb0",O_RDWR);
+        if (lcdfd == -1)
+        {
+            perror("open");
+            return -1;
+        }
+    //映射lcd
+    void * p = mmap(NULL, 800*480*4, PROT_READ |  PROT_WRITE,  MAP_SHARED,
+                  lcdfd, 0);
+                  if (p == MAP_FAILED)
+                  {
+                      perror("mmap");
+                      return;
+                  }
+                  
+
+
+        
+
+
     
     //指定解压数据源
     jpeg_stdio_src(&mydecom,myjpg);
@@ -36,7 +62,31 @@ int main(int argc, char const *argv[])
     printf("H:%d\n",mydecom.image_height);
 
 
+    //定义数组来存放解压缩到的数据
+    char *readbuf = malloc(mydecom.image_width*mydecom.jpeg_color_space);
 
+    //定义数组来存放ARGB的数据
+    char rgbbug[mydecom.image_width];
+
+    for (int i = 0; i < mydecom.image_height; i++)
+    {
+        //读取一行的解压缩数据
+        jpeg_read_scanlines(&mydecom,(JSAMPARRAY)readbuf,i);
+        for (int j = 0; j < mydecom.image_width; j++)
+        {
+            rgbbug[j] = 0x00<<24 
+            |readbuf[3*j]<<16
+            |readbuf[3*j+1]<<8
+            |readbuf[3*j+2];
+        }
+        memcpy(p+i*800,rgbbug,800);
+    }
+    //收尾工作
+    jpeg_finish_compress(&mydecom);
+    jpeg_destroy_decompress(&mydecom);
+    fclose(myjpg);
+    close(lcdfd);
+    munmap(p,800*480*4);
 
 
     return 0;
