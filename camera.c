@@ -17,6 +17,7 @@
 #define H 480
 #define W 640
 
+char  rgbbuf[H*W*3];//存放rgb数据
 
 //定义结构体来储存映射的首地址的映射内存块的大小
 struct camerebuf
@@ -24,19 +25,13 @@ struct camerebuf
     void *start; //每个缓冲内存的首地址
     int somelength;//保存的内存块的大小
 };
-//像素结构体
-struct  rgb
-{
-    int pix; //rgb
-    int Apix; //argb
-};
 
 
 //封装 yuv---->argb
-struct  rgb toRGB(int y,int u, int v)
+int toRGB(int y,int u, int v)
 {
     int r,g,b;
-    struct  rgb newrgb;
+    int pix;
 
     //通过公式进行转换
     r= y + ((360 * (v - 128))>>8) ; 
@@ -56,13 +51,13 @@ struct  rgb toRGB(int y,int u, int v)
 		g=0;
 	if(b<0)
 		b=0;
-    newrgb.Apix = 0x00<<24 | r<<16 | g<<8 | b;
-    newrgb.pix = r<<16 | g<<8 | b;
-    return newrgb;
+    pix = 0x00<<24 | r<<16 | g<<8 | b;
+
+    return pix;
 
 }
 /*RGB create jpeg  in location*/
-int rgbtojeg(int *rgbdata,char *filename)
+int rgbtojeg(char *rgbdata,char *filename)
 {
     //定义压缩结构体
     struct jpeg_compress_struct myconpress;
@@ -115,18 +110,46 @@ int rgbtojeg(int *rgbdata,char *filename)
 
 
 }
-/*YUYV-->RGB/ARGB*/
-int allyuvtoRGB(char *yubdata,int *argbbuf,int *rgbbuf)
+/*YUYV-->ARGB*/
+int allyuvtoRGB(char *yubdata,int *argbbuf)
 {
     for (int i = 0 ,j = 0; j < H*W; i+=4,j+=2)
     {
         //第一组数组
-        argbbuf[j] = toRGB(yubdata[i],yubdata[i+1],yubdata[i+3]).Apix;
-        rgbbuf[j] = toRGB(yubdata[i],yubdata[i+1],yubdata[i+3]).pix;
+        argbbuf[j] = toRGB(yubdata[i],yubdata[i+1],yubdata[i+3]);
+
 
         //第二组数组
-        argbbuf[j+1] = toRGB(yubdata[i+2],yubdata[i+1],yubdata[i+3]).Apix;
-        rgbbuf[j+1] = toRGB(yubdata[i+2],yubdata[i+1],yubdata[i+3]).pix;
+        argbbuf[j+1] = toRGB(yubdata[i+2],yubdata[i+1],yubdata[i+3]);
+
+
+    }
+    return 0;
+
+}
+
+/*YUYV-->RGB*/
+int allyuvtoRGB2(char *yubdata,char *rgbbuf)
+{
+    // int i ;
+    char *p =NULL;
+    int pix;
+    for (int i = 0 ,j = 0; i < H*W*3; i+=6,j+=4)   //H*W组RGB数据 
+    {
+        //第一组数组
+        pix = toRGB(yubdata[j],yubdata[j+1],yubdata[j+3]);
+        p = (char *)&pix;
+        rgbbuf[i] = *p+2; //r
+        rgbbuf[i+1] = *p+1; //g
+        rgbbuf[i+2] = *p; //b
+
+        //第二组数组
+        pix = toRGB(yubdata[j+2],yubdata[j+1],yubdata[j+3]);
+        p = (char *)&pix;
+        rgbbuf[i+3] = *p+2;
+        rgbbuf[i+4] = *p+1;
+        rgbbuf[i+5] = *p;
+
 
     }
     return 0;
@@ -249,7 +272,8 @@ int main()
 
     //循环出对入队显示画面
     int  argbbuf[H*W]; 
-    int  rgbbuf[H*W];  
+
+
     while (1)
     {
         for (int i = 0; i < 4; i++)
@@ -278,15 +302,17 @@ int main()
             
             //把出队画面从lcd上显示出来
             //将array[i].start YUV格式的内容转换成ARGB格式在lcd屏幕上去显示
-            allyuvtoRGB(array[i].start,argbbuf,rgbbuf);
+            allyuvtoRGB(array[i].start,argbbuf);
 
-
+            //获取rgb数据
+            allyuvtoRGB2(array[i].start,rgbbuf);
+            //将获取到的rgb数据压缩并写入jpg文件中
+            rgbtojeg(rgbbuf,"2.jpg");
             //将lcdbuf写入lcd映射中
             for (int j = 0; j < H; j++)
                 memcpy(lcdbuf+80+800*j,&argbbuf[W*j],W*4);
 
-            //将获取到的RGB输入到本地图片
-            rgbtojeg(rgbbuf,"2.jpg");
+            
             
         }
 
