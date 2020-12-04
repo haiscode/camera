@@ -76,7 +76,7 @@
 		"codecvt": "cpp"
 	},
 	"cmake.configureOnOpen": false,
-	"python.pythonPath": "/bin/python3",
+	"python.pythonPath": "C:\\python\\python.exe",
 	"python.linting.pylintEnabled": true,
 	"python.linting.enabled": true, // 格式化时调整include的顺序（按字母排序）
 }
